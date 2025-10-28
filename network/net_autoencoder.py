@@ -327,50 +327,50 @@ class Decoder(nn.Module):
 
 
 
-# ==========================
-# 2️⃣ 模型定义（Hybrid Upsample + ConvTranspose）
-# ==========================
-class AutoEncoder(nn.Module):
-    def __init__(self):
-        super().__init__()
-        # --- Encoder ---
-        self.enc1 = nn.Sequential(
-            nn.Conv2d(1, 16, 3, 2, 1),
-            nn.ReLU(inplace=True)
-        )
-        self.enc2 = nn.Sequential(
-            nn.Conv2d(16, 32, 3, 2, 1),
-            nn.ReLU(inplace=True)
-        )
-        self.enc3 = nn.Sequential(
-            nn.Conv2d(32, 64, 3, 2, 1),
-            nn.ReLU(inplace=True)
-        )
-
-        # --- Decoder ---
-        self.dec3 = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
-            nn.Conv2d(64, 32, 3, 1, 1),
-            nn.ReLU()
-        )
-        self.dec2 = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
-            nn.Conv2d(32 + 32, 16, 3, 1, 1),
-            nn.ReLU()
-        )
-        self.dec1 = nn.Sequential(
-            # ✅ 再次上采样到原图尺寸
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
-            nn.Conv2d(16 + 16, 1, 3, 1, 1),
-            nn.Sigmoid()
-        )
-
-    def forward(self, x):
-        e1 = self.enc1(x)  # [B,16,64,64]
-        e2 = self.enc2(e1)  # [B,32,32,32]
-        e3 = self.enc3(e2)  # [B,64,16,16]
-
-        d3 = self.dec3(e3)  # [B,32,32,32]
-        d2 = self.dec2(torch.cat([d3, e2], dim=1))  # [B,16,64,64]
-        out = self.dec1(torch.cat([d2, e1], dim=1))  # [B,1,128,128]
-        return out
+# # ==========================
+# # 2️⃣ 模型定义（Hybrid Upsample + ConvTranspose）
+# # ==========================
+# class AutoEncoder(nn.Module):
+#     def __init__(self):
+#         super().__init__()
+#         # --- Encoder ---
+#         self.enc1 = nn.Sequential(
+#             nn.Conv2d(1, 16, 3, 2, 1),
+#             nn.ReLU(inplace=True)
+#         )
+#         self.enc2 = nn.Sequential(
+#             nn.Conv2d(16, 32, 3, 2, 1),
+#             nn.ReLU(inplace=True)
+#         )
+#         self.enc3 = nn.Sequential(
+#             nn.Conv2d(32, 64, 3, 2, 1),
+#             nn.ReLU(inplace=True)
+#         )
+#
+#         # --- Decoder ---
+#         self.dec3 = nn.Sequential(
+#             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
+#             nn.Conv2d(64, 32, 3, 1, 1),
+#             nn.ReLU()
+#         )
+#         self.dec2 = nn.Sequential(
+#             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
+#             nn.Conv2d(32 + 32, 16, 3, 1, 1),
+#             nn.ReLU()
+#         )
+#         self.dec1 = nn.Sequential(
+#             # ✅ 再次上采样到原图尺寸
+#             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
+#             nn.Conv2d(16 + 16, 1, 3, 1, 1),
+#             nn.Sigmoid()
+#         )
+#
+#     def forward(self, x):
+#         e1 = self.enc1(x)  # [B,16,64,64]
+#         e2 = self.enc2(e1)  # [B,32,32,32]
+#         e3 = self.enc3(e2)  # [B,64,16,16]
+#
+#         d3 = self.dec3(e3)  # [B,32,32,32]
+#         d2 = self.dec2(torch.cat([d3, e2], dim=1))  # [B,16,64,64]
+#         out = self.dec1(torch.cat([d2, e1], dim=1))  # [B,1,128,128]
+#         return out
