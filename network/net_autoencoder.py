@@ -1,8 +1,3 @@
-import torch
-import torch.nn as nn
-import numpy as np
-
-
 custom_config_auto = {
     "in_channels": 1,           # 输入通道数（灰度图像）
     "out_channels": 1,         # 输出通道数
@@ -13,109 +8,6 @@ custom_config_auto = {
     "part_out": 128,          # 编码器最终输出通道
     "train_flag": True,
 }
-
-
-# class ConvLayer(nn.Module):
-#     def __init__(self, in_channels, out_channels, stride, kernel_size):
-#         super().__init__()
-#         self.reflection = nn.ReflectionPad2d(1)
-#         self.conv = nn.Sequential(
-#             nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride),
-#             # nn.BatchNorm2d(out_channels)
-#         )
-#
-#     def forward(self, x):
-#         out = self.reflection(x)
-#         out = self.conv(out)
-#         return out
-#
-#
-# # 密集快的卷积层
-# class Dense_ConvLayer(nn.Module):
-#     def __init__(self, in_channels, out_channels, kernel_size, stride):
-#         super().__init__()
-#         reflection_padding = int(np.floor(kernel_size / 2))
-#         self.reflection_pad = nn.ReflectionPad2d(reflection_padding)
-#         self.conv2d = nn.Sequential(
-#             nn.Conv2d(in_channels, out_channels, kernel_size, stride),
-#             # nn.BatchNorm2d(out_channels)
-#         )
-#
-#     def forward(self, x):
-#         out = self.reflection_pad(x)
-#         out = self.conv2d(out)
-#         out = torch.cat((x, out), 1)
-#         return out
-#
-#
-# class DenseLayer(nn.Module):
-#     def __init__(self, in_channels, out_channels, stride, kernel_size, num_layers, dense_out):
-#         super().__init__()
-#         self.num_layers = num_layers
-#         for i in range(num_layers):
-#             self.add_module('dense_conv' + str(i),
-#                             Dense_ConvLayer(
-#                                 in_channels=in_channels + i * out_channels,
-#                                 out_channels=out_channels,
-#                                 kernel_size=kernel_size,
-#                                 stride=stride
-#                             )
-#                             )
-#         self.adjust_conv = ConvLayer(in_channels=in_channels + num_layers * out_channels,
-#                                      out_channels=dense_out,
-#                                      kernel_size=kernel_size, stride=stride
-#                                      )
-#
-#     def forward(self, x):
-#         # 密集块的前向传播
-#         out = x
-#         print('密集快')
-#         for i in range(self.num_layers):
-#             print('num_block - ' + str(i))
-#             dense_conv = getattr(self, 'dense_conv' + str(i))
-#             out = dense_conv(out)
-#         out = self.adjust_conv(out)
-#         return out
-#
-#
-# class Encoder(nn.Module):
-#     def __init__(self, in_channels, out_channels):
-#         super().__init__()
-#
-#         self.kernel_size = 3
-#         self.stride = 1
-#         self.num_layers = 3  # 密集块的层数
-#         self.dense_out = 128  # 密集块的输出通道数
-#
-#         # 卷积层
-#         self.conv1 = ConvLayer(
-#             in_channels=in_channels,
-#             out_channels=out_channels,
-#             stride=self.stride,
-#             kernel_size=self.kernel_size
-#         )
-#         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
-#         # 密集块层
-#         self.dense_layer = DenseLayer(
-#             in_channels=out_channels,
-#             out_channels=self.dense_out,
-#             stride=self.stride,
-#             kernel_size=self.kernel_size,
-#             num_layers=self.num_layers,
-#             dense_out=self.dense_out
-#         )
-#
-#     def forward(self, x):
-#         conv1_out = self.conv1(x)
-#         print(f'conv1_out: {conv1_out.shape}')
-#         # 池化层
-#         out = self.pool1(conv1_out)
-#         print(f'pool1_out: {out.shape}')
-#         # 密集块层
-#         dense_out = self.dense_layer(out)
-#         print(f'dense_out: {dense_out.shape}')
-#
-#         return conv1_out, dense_out
 
 import torch
 import torch.nn as nn
@@ -257,18 +149,6 @@ class Encoder(nn.Module):
 
         return conv_out, dense_out  # 返回浅层与深层特征
 
-
-# custom_config_auto = {
-#     "in_channels": 1,           # 输入通道数（灰度图像）
-#     "out_channels": 1,         # 输出通道数
-#     "en_out_channels1": 32,    # 编码器第一层输出通道
-#     "en_out_channels": 64,     # 编码器密集块输出通道
-#     "num_layers": 3,           # 每个密集块的层数
-#     "dense_out": 128,         # 密集块最终输出通道
-#     "part_out": 128,          # 编码器最终输出通道
-#     "train_flag": True,
-# }
-
 # 解码器
 class Decoder(nn.Module):
     def __init__(self,
@@ -325,52 +205,47 @@ class Decoder(nn.Module):
         return out
 
 
-
-
-# # ==========================
-# # 2️⃣ 模型定义（Hybrid Upsample + ConvTranspose）
-# # ==========================
-# class AutoEncoder(nn.Module):
-#     def __init__(self):
-#         super().__init__()
-#         # --- Encoder ---
-#         self.enc1 = nn.Sequential(
-#             nn.Conv2d(1, 16, 3, 2, 1),
-#             nn.ReLU(inplace=True)
-#         )
-#         self.enc2 = nn.Sequential(
-#             nn.Conv2d(16, 32, 3, 2, 1),
-#             nn.ReLU(inplace=True)
-#         )
-#         self.enc3 = nn.Sequential(
-#             nn.Conv2d(32, 64, 3, 2, 1),
-#             nn.ReLU(inplace=True)
-#         )
-#
-#         # --- Decoder ---
-#         self.dec3 = nn.Sequential(
-#             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
-#             nn.Conv2d(64, 32, 3, 1, 1),
-#             nn.ReLU()
-#         )
-#         self.dec2 = nn.Sequential(
-#             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
-#             nn.Conv2d(32 + 32, 16, 3, 1, 1),
-#             nn.ReLU()
-#         )
-#         self.dec1 = nn.Sequential(
-#             # ✅ 再次上采样到原图尺寸
-#             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
-#             nn.Conv2d(16 + 16, 1, 3, 1, 1),
-#             nn.Sigmoid()
-#         )
-#
-#     def forward(self, x):
-#         e1 = self.enc1(x)  # [B,16,64,64]
-#         e2 = self.enc2(e1)  # [B,32,32,32]
-#         e3 = self.enc3(e2)  # [B,64,16,16]
-#
-#         d3 = self.dec3(e3)  # [B,32,32,32]
-#         d2 = self.dec2(torch.cat([d3, e2], dim=1))  # [B,16,64,64]
-#         out = self.dec1(torch.cat([d2, e1], dim=1))  # [B,1,128,128]
-#         return out
+# ==========================
+# 自编码器模型
+# ==========================
+class AutoEncoder(nn.Module):
+    def __init__(self, 
+                 in_channels=1,#输入通道
+                 out_channels=1,#输出通道
+                 en_out_conv=32,#编码器第一层卷积输出通道
+                 dense_Layer_out=64,#编码器密集块输出通道
+                 dense_layers=3,#每个密集块的层数
+                 dense_out=128,#编码器最终输出通道
+                 kernel_size=3,#卷积核大小
+                 debug=False):
+        super().__init__()
+        self.debug = debug
+        
+        # 编码器
+        self.encoder = Encoder(
+            in_channels=in_channels,
+            out_channels=dense_out,
+            en_out_conv=en_out_conv,
+            dense_Layer_out=dense_Layer_out,
+            dense_layers=dense_layers,
+            dense_out=dense_out,
+            kernel_size=kernel_size,
+            debug=False
+        )
+        
+        # 解码器
+        self.decoder = Decoder(
+            in_channels=dense_out,
+            kernel_size=kernel_size,
+            stride=1,
+            debug=False
+        )
+        
+    def forward(self, x):
+        # 编码器提取特征
+        conv_out, dense_out = self.encoder(x)
+        
+        # 解码器重建图像
+        reconstructed = self.decoder(conv_out, dense_out)
+        
+        return reconstructed
