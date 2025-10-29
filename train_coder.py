@@ -29,7 +29,7 @@ class TrainConfig:
 
         # 训练参数
         self.batch_size = 8
-        self.num_epochs = 1 # 增加训练轮数
+        self.num_epochs = 1  # 增加训练轮数
         self.learning_rate = 0.001
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -214,10 +214,21 @@ def train_autoencoder():
             }, checkpoint_path)
             print(f'检查点已保存: {checkpoint_path}')
 
-    # 保存最终模型
-    final_model_path = os.path.join(config.final_model_dir, 'autoencoder_final.pth')
-    torch.save(model.state_dict(), final_model_path)
-    print(f'最终模型已保存: {final_model_path}')
+    # 保存最终模型 - 分别保存编码器和解码器
+    # 保存完整的自编码器模型
+    final_autoencoder_path = os.path.join(config.final_model_dir, 'autoencoder_final.pth')
+    torch.save(model.state_dict(), final_autoencoder_path)
+    print(f'完整自编码器模型已保存: {final_autoencoder_path}')
+
+    # 单独保存编码器模型
+    final_encoder_path = os.path.join(config.final_model_dir, 'encoder_final.pth')
+    torch.save(model.encoder.state_dict(), final_encoder_path)
+    print(f'编码器模型已保存: {final_encoder_path}')
+
+    # 单独保存解码器模型
+    final_decoder_path = os.path.join(config.final_model_dir, 'decoder_final.pth')
+    torch.save(model.decoder.state_dict(), final_decoder_path)
+    print(f'解码器模型已保存: {final_decoder_path}')
 
     # 绘制损失曲线
     plt.figure(figsize=(10, 6))
