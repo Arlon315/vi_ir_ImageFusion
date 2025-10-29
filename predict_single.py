@@ -6,7 +6,7 @@ import os
 import numpy as np
 from PIL.ImageCms import Flags
 
-from network.net_autoencoder import AutoEncoder
+from network.net_autoencoder import AutoEncoder, Encoder, Decoder
 
 
 def load_and_preprocess_image(image_path):
@@ -192,6 +192,64 @@ def predict_single_image(model_path, image_path, output_path, enhance_white=Fals
     return tensor_image, reconstructed
 
 
+def predict_with_separate_models(encoder_path, decoder_path, image_path, output_path, enhance_white=False):
+    """使用训练好的编码器和解码器模型对单张图像进行预测"""
+    # 检查CUDA是否可用
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"使用设备: {device}")
+
+    # 创建编码器和解码器
+    encoder = Encoder(
+        in_channels=1,
+        out_channels=128,
+        en_out_conv=32,
+        dense_Layer_out=64,
+        dense_layers=3,
+        dense_out=128,
+        kernel_size=3,
+        debug=False
+    )
+
+    decoder = Decoder(
+        in_channels=128,
+        kernel_size=3,
+        stride=1,
+        debug=False
+    )
+
+    # 加载训练好的编码器和解码器权重
+    encoder.load_state_dict(torch.load(encoder_path, map_location=device))
+    decoder.load_state_dict(torch.load(decoder_path, map_location=device))
+
+    encoder.to(device)
+    decoder.to(device)
+
+    encoder.eval()
+    decoder.eval()
+
+    # 加载并预处理图像
+    tensor_image, original_pil = load_and_preprocess_image(image_path)
+    tensor_image = tensor_image.to(device)
+
+    print(f"输入图像尺寸: {tensor_image.shape}")
+
+    # 使用编码器和解码器进行预测
+    with torch.no_grad():
+        conv_out, dense_out = encoder(tensor_image)
+        reconstructed = decoder(conv_out, dense_out)
+
+    # 如果需要增强白色区域
+    if enhance_white:
+        reconstructed = post_process_white_areas(tensor_image, reconstructed)
+
+    print(f"重建图像尺寸: {reconstructed.shape}")
+
+    # 保存对比结果
+    save_comparison(tensor_image, reconstructed, output_path)
+
+    return tensor_image, reconstructed
+
+
 def predict_single_color_image(model_path, image_path, output_path, enhance_white=False):
     """使用训练好的自编码器模型对彩色图像进行预测"""
     # 检查CUDA是否可用
@@ -247,15 +305,86 @@ def predict_single_color_image(model_path, image_path, output_path, enhance_whit
     return original_rgb, reconstructed_rgb
 
 
+def predict_color_with_separate_models(encoder_path, decoder_path, image_path, output_path, enhance_white=False):
+    """使用训练好的编码器和解码器模型对彩色图像进行预测"""
+    # 检查CUDA是否可用
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"使用设备: {device}")
+
+    # 创建编码器和解码器
+    encoder = Encoder(
+        in_channels=1,
+        out_channels=128,
+        en_out_conv=32,
+        dense_Layer_out=64,
+        dense_layers=3,
+        dense_out=128,
+        kernel_size=3,
+        debug=False
+    )
+
+    decoder = Decoder(
+        in_channels=128,
+        kernel_size=3,
+        stride=1,
+        debug=False
+    )
+
+    # 加载训练好的编码器和解码器权重
+    encoder.load_state_dict(torch.load(encoder_path, map_location=device))
+    decoder.load_state_dict(torch.load(decoder_path, map_location=device))
+
+    encoder.to(device)
+    decoder.to(device)
+
+    encoder.eval()
+    decoder.eval()
+
+    # 加载并预处理图像
+    l_tensor, original_rgb, original_lab = load_and_preprocess_color_image(image_path)
+    l_tensor = l_tensor.to(device)
+
+    print(f"输入图像尺寸: {l_tensor.shape}")
+
+    # 使用编码器和解码器对L通道进行预测
+    with torch.no_grad():
+        conv_out, dense_out = encoder(l_tensor)
+        reconstructed_l = decoder(conv_out, dense_out)
+
+    # 如果需要增强白色区域
+    if enhance_white:
+        reconstructed_l = post_process_white_areas(l_tensor, reconstructed_l)
+
+    print(f"重建L通道尺寸: {reconstructed_l.shape}")
+
+    # 将处理后的L通道与原始色彩信息结合
+    reconstructed_rgb = convert_gray_to_color(reconstructed_l, original_lab)
+
+    # 保存对比结果
+    save_color_comparison(original_rgb, reconstructed_rgb, output_path)
+
+    # 同时保存重建的彩色图像
+    output_dir = os.path.dirname(output_path)
+    base_name = os.path.splitext(os.path.basename(output_path))[0]
+    reconstructed_image_path = os.path.join(output_dir, f"240135_ir_{base_name}_reconstructed_enhance.png")
+    reconstructed_rgb.save(reconstructed_image_path)
+    print(f"重建彩色图像已保存到: {reconstructed_image_path}")
+
+    return original_rgb, reconstructed_rgb
+
+
 if __name__ == "__main__":
     # 模型路径
     model_path = "weights/autoencoder_final.pth"
+    encoder_path = "weights/encoder_final.pth"
+    decoder_path = "weights/decoder_final.pth"
 
     # 测试图像路径（您可以根据需要修改）
-    image_path = "image/testNet/240135_ir.jpg"
+    image_path = "image/testNet/260528.jpg"
 
     # 输出图像路径
-    output_path = "output/predict/240135_ir_single_image_comparison_enhance.png"
+    output_path = "output/predict/260528_vi_single_image_comparison_enhance.png"
+    separate_output_path = "output/predict/260528_vi_separate_models_comparison_enhance.png"
 
     # 确保输出目录存在
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -268,11 +397,21 @@ if __name__ == "__main__":
     try:
         if is_color:
             print("检测到彩色图像，使用彩色处理模式...")
-            original, reconstructed = predict_single_color_image(model_path, image_path, output_path,
-                                                                 enhance_white=True)
+            # print("使用完整自编码器模型:")
+            # original, reconstructed = predict_single_color_image(model_path, image_path, output_path,
+            #                                                      enhance_white=True)
+
+            print("\n使用分离的编码器和解码器模型:")
+            original_sep, reconstructed_sep = predict_color_with_separate_models(
+                encoder_path, decoder_path, image_path, separate_output_path, enhance_white=True)
         else:
             print("检测到灰度图像，使用灰度处理模式...")
-            original, reconstructed = predict_single_image(model_path, image_path, output_path, enhance_white=True)
+            # print("使用完整自编码器模型:")
+            # original, reconstructed = predict_single_image(model_path, image_path, output_path, enhance_white=True)
+
+            print("\n使用分离的编码器和解码器模型:")
+            original_sep, reconstructed_sep = predict_with_separate_models(
+                encoder_path, decoder_path, image_path, separate_output_path, enhance_white=True)
         print("单张图像测试完成!")
     except Exception as e:
         print(f"测试过程中出现错误: {e}")
