@@ -146,52 +146,6 @@ def save_color_comparison(original_rgb, reconstructed_rgb, save_path):
 
     print(f"彩色对比图像已保存到: {save_path}")
 
-
-def predict_single_image(model_path, image_path, output_path, enhance_white=False):
-    """使用训练好的自编码器模型对单张图像进行预测"""
-    # 检查CUDA是否可用
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"使用设备: {device}")
-
-    # 创建模型
-    model = AutoEncoder(
-        in_channels=1,
-        out_channels=1,
-        en_out_conv=32,
-        dense_Layer_out=64,
-        dense_layers=3,
-        dense_out=128,
-        kernel_size=3,
-        debug=False
-    )
-
-    # 加载训练好的模型权重
-    model.load_state_dict(torch.load(model_path, map_location=device))
-    model.to(device)
-    model.eval()
-
-    # 加载并预处理图像
-    tensor_image, original_pil = load_and_preprocess_image(image_path)
-    tensor_image = tensor_image.to(device)
-
-    print(f"输入图像尺寸: {tensor_image.shape}")
-
-    # 使用模型进行预测
-    with torch.no_grad():
-        reconstructed = model(tensor_image)
-
-    # 如果需要增强白色区域
-    if enhance_white:
-        reconstructed = post_process_white_areas(tensor_image, reconstructed)
-
-    print(f"重建图像尺寸: {reconstructed.shape}")
-
-    # 保存对比结果
-    save_comparison(tensor_image, reconstructed, output_path)
-
-    return tensor_image, reconstructed
-
-
 def predict_with_separate_models(encoder_path, decoder_path, image_path, output_path, enhance_white=False):
     """使用训练好的编码器和解码器模型对单张图像进行预测"""
     # 检查CUDA是否可用
@@ -375,9 +329,9 @@ def predict_color_with_separate_models(encoder_path, decoder_path, image_path, o
 
 if __name__ == "__main__":
     # 模型路径
-    model_path = "weights/autoencoder_final.pth"
-    encoder_path = "weights/encoder_final.pth"
-    decoder_path = "weights/decoder_final.pth"
+    model_path = "weights/server/autoencoder_final.pth"
+    encoder_path = "weights/server/encoder_final.pth"
+    decoder_path = "weights/server/decoder_final.pth"
 
     # 测试图像路径（您可以根据需要修改）
     image_path = "image/testNet/260528.jpg"
